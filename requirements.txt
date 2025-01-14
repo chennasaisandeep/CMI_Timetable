@@ -1,0 +1,10 @@
+base64
+bs4
+collections
+io
+matplotlib
+pandas
+requests
+six
+st_aggrid
+streamlit

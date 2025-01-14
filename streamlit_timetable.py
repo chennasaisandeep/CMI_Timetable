@@ -136,7 +136,7 @@ class TimetableProcessor:
                 if current_value == '':
                     self.df.iloc[row_idx, col_idx] = course
                 else:
-                    self.df.iloc[row_idx, col_idx] = f"{current_value}\n{course}"
+                    self.df.iloc[row_idx, col_idx] = f"{current_value}/{course}"
 
     def get_course_schedule(self, course_name):
         """Get the schedule indices for a specific course"""
@@ -238,15 +238,18 @@ def render_timetable(df, main_header_1, main_header_2,
     ax.text(0.5, 0.8, main_header_2, fontsize=header2_fontsize, ha='center', va='center', fontweight='bold')
     table_bbox = [0.05, 0.15, 0.9, 0.6]
 
-    cell_text = df_clean.values.copy()
+    cell_text = df.values.copy()
     for i in range(len(cell_text)):
         for j in range(len(cell_text[i])):
-            if cell_text[i][j] and '\n' in str(cell_text[i][j]):
-                courses = cell_text[i][j].split('\n')
-                cell_text[i][j] = '\n \n'.join(courses)
+            if cell_text[i][j] and '/' in str(cell_text[i][j]):
+                courses = cell_text[i][j].split('/')
+                if len(courses) > 2:  # Check if more than two courses
+                    cell_text[i][j] = '\n'.join(courses)
+                else:
+                    cell_text[i][j] = '/'.join(courses) # Changed to just \n
 
     mpl_table = ax.table(cellText=cell_text, bbox=table_bbox, colLabels=df_clean.columns, cellLoc='center')
-
+    
     mpl_table.auto_set_font_size(False)
     mpl_table.set_fontsize(font_size)
 
@@ -285,6 +288,8 @@ def render_timetable(df, main_header_1, main_header_2,
                 cell.set_facecolor(header_color)
             else:
                 cell.set_facecolor(['#f1f1f2', 'w'][k[0] % 2])
+        cell.get_text().set_wrap(True) 
+        cell.get_text().set_verticalalignment('center')
 
     plt.tight_layout()
     return fig
@@ -368,11 +373,26 @@ def create_initial_dataframe(manager, selected_subjects):
     df = pd.DataFrame(index=days, columns=manager.timings)
     df.index.name = 'Day'
     
+    # Initialize all cells with empty lists to store multiple subjects
+    for day in days:
+        for timing in manager.timings:
+            df.at[day, timing] = []
+    
+    # Add subjects to the appropriate cells
     for subject in selected_subjects:
         for course, subjects in manager.course_mapping.items():
             if subject in subjects:
                 for slot in subjects[subject]:
-                    df.at[slot['day'], slot['timing']] = subject
+                    current_subjects = df.at[slot['day'], slot['timing']]
+                    if subject not in current_subjects:
+                        current_subjects.append(subject)
+                        df.at[slot['day'], slot['timing']] = current_subjects
+    
+    # Convert lists to strings with newline separators
+    for day in days:
+        for timing in manager.timings:
+            subjects_list = df.at[day, timing]
+            df.at[day, timing] = '/'.join(subjects_list) if subjects_list else ''
     
     # Remove SAT row if it's empty
     sat_row_empty = df.loc['SAT'].apply(lambda x: x == '').all()

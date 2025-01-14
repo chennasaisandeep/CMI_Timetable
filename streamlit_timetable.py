@@ -219,18 +219,14 @@ class SubjectTimetableManager:
         self.all_subjects = sorted(list(self.all_subjects))
 
 
-def render_timetable(df, main_header_1, main_header_2, 
+def render_timetable(df_clean, main_header_1, main_header_2, 
                      fig_size=(12, 12), font_size=14,
                      header1_fontsize=34, header2_fontsize=20):
+    
     # Remove SAT row if it's empty
-    df_clean = df.copy()
-    if 'Day' in df_clean.columns:  # Check if DataFrame is reset (has Day as column)
-        sat_row = df_clean[df_clean['Day'] == 'SAT']
-        if sat_row.iloc[:, 1:].apply(lambda x: x == '').all().all():  # Check if all cells except 'Day' are empty
-            df_clean = df_clean[df_clean['Day'] != 'SAT']
-    else:  # If DataFrame is not reset (has Day as index)
-        if 'SAT' in df_clean.index and df_clean.loc['SAT'].apply(lambda x: x == '').all():
-            df_clean = df_clean.drop('SAT')
+    sat_row = df_clean[df_clean['Day'] == 'SAT']
+    if sat_row.iloc[:, 1:].apply(lambda x: x == '').all().all():  # Check if all cells except 'Day' are empty
+        df_clean = df_clean[df_clean['Day'] != 'SAT']
 
     fig, ax = plt.subplots(figsize=fig_size)
     ax.axis('off')
@@ -238,7 +234,7 @@ def render_timetable(df, main_header_1, main_header_2,
     ax.text(0.5, 0.8, main_header_2, fontsize=header2_fontsize, ha='center', va='center', fontweight='bold')
     table_bbox = [0.05, 0.15, 0.9, 0.6]
 
-    cell_text = df.values.copy()
+    cell_text = df_clean.values
     for i in range(len(cell_text)):
         for j in range(len(cell_text[i])):
             if cell_text[i][j] and '/' in str(cell_text[i][j]):
@@ -393,11 +389,6 @@ def create_initial_dataframe(manager, selected_subjects):
         for timing in manager.timings:
             subjects_list = df.at[day, timing]
             df.at[day, timing] = '/'.join(subjects_list) if subjects_list else ''
-    
-    # Remove SAT row if it's empty
-    sat_row_empty = df.loc['SAT'].apply(lambda x: x == '').all()
-    if sat_row_empty:
-        df = df.drop('SAT')
     
     df.fillna('', inplace=True)
     df.reset_index(inplace=True)
